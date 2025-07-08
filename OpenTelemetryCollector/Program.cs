@@ -1,37 +1,36 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Hosting;
-using System.IO;
-using System.Threading.Tasks;
-
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://localhost:4318");
 var app = builder.Build();
 
-app.MapPost("/v1/traces", async context =>
+// Single POST handler for any path
+app.MapPost("/{**path}", async context =>
 {
+    string path = context.Request.Path.Value ?? "/";
     using var reader = new StreamReader(context.Request.Body);
     var body = await reader.ReadToEndAsync();
-    System.Console.WriteLine("Received traces:");
-    System.Console.WriteLine(body);
+    
+    Console.WriteLine($"Received POST {path}:");
+    Console.WriteLine(body);
+    
     context.Response.StatusCode = 200;
 });
 
-app.MapPost("/v1/metrics", async context =>
+// OPTIONS handler for CORS preflight requests
+app.MapMethods("/{**path}", new[] { "OPTIONS" }, context =>
 {
-    using var reader = new StreamReader(context.Request.Body);
-    var body = await reader.ReadToEndAsync();
-    System.Console.WriteLine("Received metrics:");
-    System.Console.WriteLine(body);
-    context.Response.StatusCode = 200;
-});
-
-app.MapPost("/v1/logs", async context =>
-{
-    using var reader = new StreamReader(context.Request.Body);
-    var body = await reader.ReadToEndAsync();
-    System.Console.WriteLine("Received logs:");
-    System.Console.WriteLine(body);
-    context.Response.StatusCode = 200;
+    string path = context.Request.Path.Value ?? "/";
+    
+    System.Console.WriteLine($"Received OPTIONS {path}");
+    
+    // Set CORS headers
+    context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+    context.Response.Headers.Append("Access-Control-Allow-Methods", "POST, OPTIONS");
+    context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type");
+    
+    context.Response.StatusCode = 204; // No Content is the standard response for OPTIONS
+    
+    return Task.CompletedTask;
 });
 
 app.Run();
